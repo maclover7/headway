@@ -1,0 +1,9 @@
+*.DS_Store
+mtadownload/
+need2upload/
+node_modules/
+out/
+outjson/
+outjson-old/
+s3.md
+stations.json

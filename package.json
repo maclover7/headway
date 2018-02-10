@@ -1,0 +1,10 @@
+{
+  "dependencies": {
+    "csv-parse": "^2.0.2",
+    "glob": "^7.1.2",
+    "moment": "^2.20.1",
+    "protobufjs": "^6.8.4",
+    "request": "^2.83.0",
+    "request-promise": "^4.2.2"
+  }
+}
