@@ -90,14 +90,13 @@ var output = `
   </div>
 
   <script>
-    var stops = ${JSON.stringify(stops)};
     $(document).ready(() => {
-      $('#lines-select')
-      .chosen()
-      .change((e, args) => {
-        currentLine = args.selected;
-        e.preventDefault();
+      var currentLine = $("#lines-select").chosen().val();
+      var currentStopGtfsCode = '';
+      var stops = ${JSON.stringify(stops)};
 
+      const renderStops = () => {
+        console.log('new');
         $("#stops-select").chosen("destroy");
         $('#stops-select').find('option').remove();
         $('#stops-select').append('<option value></option>');
@@ -128,6 +127,18 @@ var output = `
           currentStopGtfsCode = args.selected;
           e.preventDefault();
         });
+      };
+
+      if (currentLine) {
+        renderStops();
+      }
+
+      $('#lines-select')
+      .chosen()
+      .change((e, args) => {
+        currentLine = args.selected;
+        e.preventDefault();
+        renderStops();
       });
 
       $('button').click((e) => {
