@@ -96,7 +96,6 @@ var output = `
       var stops = ${JSON.stringify(stops)};
 
       const renderStops = () => {
-        console.log('new');
         $("#stops-select").chosen("destroy");
         $('#stops-select').find('option').remove();
         $('#stops-select').append('<option value></option>');
