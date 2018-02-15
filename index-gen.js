@@ -23,9 +23,7 @@ var stopTmpl = '`<option value=${stop.gtfsCode}>${stop.name}</option>`';
 var output = `
 <head>
   <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.3/chosen.min.css" />
   <script src="http://code.jquery.com/jquery-3.3.1.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chosen/1.8.3/chosen.jquery.min.js"></script>
 
   <!-- Global site tag (gtag.js) - Google Analytics -->
   <script async src="https://www.googletagmanager.com/gtag/js?id=UA-58452343-8"></script>
@@ -91,12 +89,11 @@ var output = `
 
   <script>
     $(document).ready(() => {
-      var currentLine = $("#lines-select").chosen().val();
+      var currentLine = $("#lines-select").val();
       var currentStopGtfsCode = '';
       var stops = ${JSON.stringify(stops)};
 
       const renderStops = () => {
-        $("#stops-select").chosen("destroy");
         $('#stops-select').find('option').remove();
         $('#stops-select').append('<option value></option>');
 
@@ -121,10 +118,9 @@ var output = `
         }
 
         $('#stops-select')
-        .chosen()
-        .change((e, args) => {
-          currentStopGtfsCode = args.selected;
+        .change((e) => {
           e.preventDefault();
+          currentStopGtfsCode = $(e.target).val();
         });
       };
 
@@ -133,10 +129,9 @@ var output = `
       }
 
       $('#lines-select')
-      .chosen()
-      .change((e, args) => {
-        currentLine = args.selected;
+      .change((e) => {
         e.preventDefault();
+        currentLine = $(e.target).val();
         renderStops();
       });
 
