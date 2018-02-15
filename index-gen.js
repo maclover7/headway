@@ -84,6 +84,14 @@ var output = `
       <br><br>
 
       <button href="#" type="button" class="btn btn-primary" id="submit">Go</button>
+
+      <hr>
+
+      <p>
+        Read the investigative story:
+        <a href="https://bigboard.blog/2018/02/15/out-in-the-cold-irregular-subway-ops-leads-to-longer-wait-times/">
+          "Out in the cold: Irregular subway ops leads to longer wait times"</a>.
+      </p>
     </div>
   </div>
 
