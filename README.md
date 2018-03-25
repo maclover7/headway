@@ -15,3 +15,14 @@ subway system's performance.
 - `rt-to-json.js`: Fetches archived GTFS-RT data and creates `.json`
   files in `outjson`
 - `stationgrabber.js`: Fetches CSV file and creates `stations.json`
+
+### Soup to Nuts: How to use headway
+
+- Pick a date or series of dates you wish to analyze.
+- Create a `mtadownload` directory within this repository.
+- Download the full day's archival data via `https://datamine-history.s3.amazonaws.com/gtfs-YYYY-MM-DD.tgz`, and place into `mtadownload`.
+- Unarchive the `.tgz`.
+- Update the `YYYY-MM-DD` dates at the buttom of `rt-to-json.js`.
+- Run `node rt-to-json.js`.
+- Update variables in `rt-dumper-tph.js`.
+- Run `node rt-dumper-tph.js`.
