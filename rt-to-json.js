@@ -34,13 +34,10 @@ const processFeed = (feedMessage, directionMap, body) => {
   msg.entity.forEach((entity) => {
    if (!entity.tripUpdate) return;
 
-   var trip = entity.tripUpdate.trip;
-   var trainId = trip['.nyctTripDescriptor'].trainId;
-
    if (!trainDb[trainId]) {
      trainDb[trainId] = {
        updates: {},
-       direction: directionMap[trip['.nyctTripDescriptor'].direction]
+       direction: directionMap[entity.tripUpdate.trip['.nyctTripDescriptor'].direction]
      };
    }
 
@@ -74,8 +71,11 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
       });
 
       for(var i = 0; i < lineFiles.length; i++) {
-        var contents = fs.readFileSync(`${dir}/${lineFiles[i]}`);
-        processFeed(feedMessage, directionMap, contents);
+        processFeed(
+          feedMessage,
+          directionMap,
+          fs.readFileSync(`${dir}/${lineFiles[i]}`)
+        );
 
         if ((i + 1) === lineFiles.length) {
           if (line === '') {
@@ -83,7 +83,6 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
           }
 
           var filename = `outjson/rt-${date}-${line}.json`;
-
           fs.writeFile(filename, JSON.stringify(trainDb), () => {
             console.log(`Wrote ${filename}`);
           });
