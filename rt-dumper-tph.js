@@ -10,8 +10,8 @@ const dates = [
   //'2018-01-22', '2018-01-23', '2018-01-24', '2018-01-25', '2018-01-26',
   //'2018-01-29', '2018-01-30', '2018-01-31'
 ];
-const monthYearPrefix = '2018-01';
-const monthYearPrefix2 = '2018-01-02';
+const monthYearPrefixGtfs = '2018-01';
+const monthYearPrefixOutFilename = '2018-01-02';
 const monthYearString = 'January 2, 2018';
 const routeGroups = [
   '123456S',
@@ -29,9 +29,6 @@ const validDirectionsMap = {
   'South': ['SOUTH', 'EAST']
 };
 
-/*
- * getStopTimesSched
-*/
 const getStopTimesSched = (ctx, validDirections) => {
   console.log(`STATUS: ${ctx.stop.gtfsCode} getStopTimesSched`);
   var suffix = validDirections[0].substring(0, 1);
@@ -63,9 +60,6 @@ const getStopTimesSched = (ctx, validDirections) => {
     }, []);
 };
 
-/*
- * getStopTimesRT
-*/
 const getStopTimesRT = (ctx, validDirections) => {
   var allTrainTimes = Object.keys(ctx.rt).map((date) => {
     var trainTimesForDate = Object.keys(ctx.rt[date])
@@ -87,9 +81,6 @@ const getStopTimesRT = (ctx, validDirections) => {
   return Object.assign({}, ...allTrainTimes);
 };
 
-/*
- * calculateStatsForStopTimes
-*/
 const calculateStatsForStopTimes = (ctx, stopTimes) => {
   var statsByDay = {};
 
@@ -185,9 +176,6 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
   return bigStatsAvg;
 };
 
-/*
- * getResults
-*/
 const getResults = (ctx) => {
   return new Promise((resolve, reject) => {
     var retVal = Object.keys(validDirectionsMap).reduce((obj, validDirection) => {
@@ -206,7 +194,7 @@ const getResults = (ctx) => {
 };
 
 const getRT = (routeGroup) => {
-  return glob(`outjson/rt-${monthYearPrefix}-*-${routeGroup}.json`)
+  return glob(`outjson/rt-${monthYearPrefixGtfs}-*-${routeGroup}.json`)
   .then((matchingFiles) => {
     return Promise.all(matchingFiles.map((filename) => {
       return new Promise((resolve, reject) => {
@@ -235,9 +223,6 @@ const getSchedule = () => {
   });
 };
 
-/*
- * printOutput
-*/
 const printOutput = (args) => {
   var ctx = args[0];
   var results = args[1];
@@ -341,16 +326,13 @@ const printOutput = (args) => {
 
   output += '</div></body>';
 
-  var filename = `${ctx.stop.gtfsCode}-${ctx.trainLine}-${ctx.monthYearPrefix2}.html`;
+  var filename = `${ctx.stop.gtfsCode}-${ctx.trainLine}-${ctx.monthYearPrefixOutFilename}.html`;
   fs.writeFile(`out/${filename}`, output, (err) => {
     if (err) console.log(err);
     console.log(`completed ${filename}`);
   });
 };
 
-/*
- * processStop
-*/
 const processStop = (stop) => {
   stop.lines.forEach((trainLine) => {
     if (trainLine === 'W' || (trainLine === 'S' && stop.gtfsCode.startsWith('H'))) {
@@ -385,7 +367,7 @@ const processStop = (stop) => {
     .then((files) => {
       return getResults({
         dates,
-        monthYearPrefix, monthYearPrefix2, monthYearString,
+        monthYearPrefixGtfs, monthYearPrefixOutFilename, monthYearString,
         rt: files[0],
         stop,
         stopTimes: files[1],
