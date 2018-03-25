@@ -25,64 +25,59 @@ const processFeed = (feedMessage, directionMap, body) => {
   var msg;
 
   try {
-   msg = feedMessage.decode(body);
+    msg = feedMessage.decode(body);
   } catch (e) {
     console.error(e);
     return;
   }
 
-   msg.entity.map((entity) => {
-    if (!entity.tripUpdate) {
-      return new Promise((resolve, reject) => { resolve(); });
-    }
+  msg.entity.forEach((entity) => {
+   if (!entity.tripUpdate) return;
 
-    var trip = entity.tripUpdate.trip;
-    var trainId = trip['.nyctTripDescriptor'].trainId;
+   var trip = entity.tripUpdate.trip;
+   var trainId = trip['.nyctTripDescriptor'].trainId;
 
-    if(!trainDb[trainId]) {
-      trainDb[trainId] = {
-        updates: {},
-        direction: directionMap[trip['.nyctTripDescriptor'].direction]
-      };
-    }
+   if (!trainDb[trainId]) {
+     trainDb[trainId] = {
+       updates: {},
+       direction: directionMap[trip['.nyctTripDescriptor'].direction]
+     };
+   }
 
-    entity.tripUpdate.stopTimeUpdate.map((stopTimeUpdate) => {
-      var stopId = stopTimeUpdate.stopId.slice(0, -1);
-      var time;
+   entity.tripUpdate.stopTimeUpdate.map((stopTimeUpdate) => {
+     var stopId = stopTimeUpdate.stopId.slice(0, -1);
+     var time;
 
-      if (stopTimeUpdate.arrival && stopTimeUpdate.arrival.time) {
-        time = stopTimeUpdate.arrival.time.low;
-      } else if (stopTimeUpdate.departure && stopTimeUpdate.departure.time) {
-        time = stopTimeUpdate.departure.time.low;
-      } else {
-        time = '';
-      }
+     if (stopTimeUpdate.arrival && stopTimeUpdate.arrival.time) {
+       time = stopTimeUpdate.arrival.time.low;
+     } else if (stopTimeUpdate.departure && stopTimeUpdate.departure.time) {
+       time = stopTimeUpdate.departure.time.low;
+     } else {
+       time = '';
+     }
 
-      trainDb[trainId].updates[stopId] = moment.unix(time);
-    });
-  });
+     trainDb[trainId].updates[stopId] = moment.unix(time);
+   });
+ });
 };
 
 const runTrainDataCollector = (feedMessage, directionMap, date) => {
-  fs.readdir(`mtadownload/gtfs-${date}/`, (err, files) => {
+  var dir = `mtadownload/gtfs-${date}/`;
+  fs.readdir(dir, (err, files) => {
     if (err) throw err;
-
-    var subwayFiles = files.filter((file) => {
-      return !file.includes('lirr') && !file.includes('mnr')
-    });
 
     ['', '7', 'ace', 'bdfm', 'g', 'jz', 'l', 'nqrw', 'si'].forEach((line) => {
       trainDb = {};
 
-      var lineFiles = subwayFiles.filter((file) => {
-        return file.startsWith(`gtfs-${line}`);
+      var lineFiles = files.filter((file) => {
+        return !(file.includes('lirr') || file.includes('mnr')) && file.startsWith(`gtfs-${line}`);
       });
 
       for(var i = 0; i < lineFiles.length; i++) {
-        var contents = fs.readFileSync(`${dir}${lineFiles[i]}`);
+        var contents = fs.readFileSync(`${dir}/${lineFiles[i]}`);
         processFeed(feedMessage, directionMap, contents);
 
-        if ((i+1) === lineFiles.length) {
+        if ((i + 1) === lineFiles.length) {
           if (line === '') {
             line = '123456S';
           }
@@ -101,12 +96,13 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
 loadTrainDataCollectorAssets()
 .then((args) => {
   [
-    '02', '03', '04', '05',
-    '08', '09', '10', '11', '12',
-    '15', '16', '17', '18', '19',
-    '22', '23', '24', '25', '26',
-    '29', '30', '31'
+    '2018-01-02',
+    //'2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05',
+    //'2018-01-08', '2018-01-09', '2018-01-10', '2018-01-11', '2018-01-12',
+    //'2018-01-15', '2018-01-16', '2018-01-17', '2018-01-18', '2018-01-19',
+    //'2018-01-22', '2018-01-23', '2018-01-24', '2018-01-25', '2018-01-26',
+    //'2018-01-29', '2018-01-30', '2018-01-31'
   ].forEach((day) => {
-    runTrainDataCollector(args[0], args[1], `2018-01-${day}`);
+    runTrainDataCollector(args[0], args[1], day);
   });
 });
