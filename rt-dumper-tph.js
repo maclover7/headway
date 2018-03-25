@@ -2,16 +2,38 @@ const fs = require('fs');
 const glob = require('util').promisify(require('glob'));
 const moment = require('moment');
 
+const dates = [
+  '2018-01-02'
+  //'2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05',
+  //'2018-01-08', '2018-01-09', '2018-01-10', '2018-01-11', '2018-01-12',
+  //'2018-01-15', '2018-01-16', '2018-01-17', '2018-01-18', '2018-01-19',
+  //'2018-01-22', '2018-01-23', '2018-01-24', '2018-01-25', '2018-01-26',
+  //'2018-01-29', '2018-01-30', '2018-01-31'
+];
+const monthYearPrefix = '2018-01';
+const monthYearPrefix2 = '2018-01-02';
+const monthYearString = 'January 2, 2018';
+const routeGroups = [
+  '123456S',
+  '7',
+  'ace',
+  'bdfm',
+  'g',
+  'jz',
+  'l',
+  'nqrw',
+  'si'
+];
+const validDirectionsMap = {
+  'North': ['NORTH', 'WEST'],
+  'South': ['SOUTH', 'EAST']
+};
+
 /*
  * getStopTimesSched
 */
 const getStopTimesSched = (ctx, validDirections) => {
-  if (validDirections.includes('NORTH')) {
-    var suffix = 'N';
-  } else {
-    var suffix = 'S'
-  }
-
+  var suffix = validDirections[0].substring(0, 1);
   var formattedStopId = `${ctx.stopId}${suffix}`;
 
   console.log(`STATUS: ${ctx.stopId} getStopTimesSched`);
@@ -168,23 +190,51 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
 /*
  * getResults
 */
-const validDirectionsMap = {
-  'North': ['NORTH', 'WEST'],
-  'South': ['SOUTH', 'EAST']
+const getResults = (ctx) => {
+  return new Promise((resolve, reject) => {
+    var retVal = Object.keys(validDirectionsMap).reduce((obj, validDirection) => {
+      var validDirections = validDirectionsMap[validDirection];
+
+      obj[validDirection] = {
+        ['Scheduled']: calculateStatsForStopTimes(ctx, getStopTimesSched(ctx, validDirections)),
+        ['Actual']: calculateStatsForStopTimes(ctx, getStopTimesRT(ctx, validDirections)),
+      };
+
+      return obj;
+    }, {});
+
+    resolve([ctx, retVal]);
+  });
 };
-const getResults = (ctx, cb) => {
-  var retVal = Object.keys(validDirectionsMap).reduce((obj, validDirection) => {
-    var validDirections = validDirectionsMap[validDirection];
 
-    obj[validDirection] = {
-      ['Scheduled']: calculateStatsForStopTimes(ctx, getStopTimesSched(ctx, validDirections)),
-      ['Actual']: calculateStatsForStopTimes(ctx, getStopTimesRT(ctx, validDirections)),
-    };
+const getRT = (routeGroup) => {
+  return glob(`outjson/rt-${monthYearPrefix}-*-${routeGroup}.json`)
+  .then((matchingFiles) => {
+    return Promise.all(matchingFiles.map((filename) => {
+      return new Promise((resolve, reject) => {
+        fs.readFile(filename, (err, file) => {
+          if (err) reject(err);
+          resolve({
+            [filename.substring(11, 21)]: JSON.parse(file.toString())
+          });
+        });
+      });
+    }));
+  })
+  .then((rtSegments) => {
+    return new Promise((resolve, reject) => {
+      resolve(...rtSegments);
+    });
+  });
+};
 
-    return obj;
-  }, {});
-
-  cb([ctx, retVal]);
+const getSchedule = () => {
+  return new Promise((resolve, reject) => {
+    fs.readFile('mtadownload/google_transit/stop_times.txt', (err, file) => {
+      if (err) reject(err);
+      resolve(file.toString().split("\n"));
+    });
+  });
 };
 
 /*
@@ -239,7 +289,7 @@ const printOutput = (args) => {
       <div class="center">
         <h1>Weekday Headway Report</h1>
         <h3>${ctx.trainLine} train at ${ctx.stopName}</h3>
-        <h3>${ctx.dateStr}</h3>
+        <h3>${ctx.monthYearString}</h3>
       </div>
       <br>
       <div class="row">
@@ -247,8 +297,7 @@ const printOutput = (args) => {
 
   Object.keys(results).forEach((result) => {
     Object.keys(results[result]).forEach((resultType) => {
-      output += `<div class="col-md-3">`;
-      output += `<h3>${result}: ${resultType}</h3>`;
+      output += `<div class="col-md-3"><h3>${result}: ${resultType}</h3>`;
 
       // Fix issue (namely with #5 line) where trains seem to be incorrectly coded.
       // There are numerous RT trains appearing, while none are scheduled
@@ -294,12 +343,9 @@ const printOutput = (args) => {
 
   output += '</div></body>';
 
-  var filename = `${ctx.stopId}-${ctx.trainLine}-${ctx.date}.html`;
+  var filename = `${ctx.stopId}-${ctx.trainLine}-${ctx.monthYearPrefix2}.html`;
   fs.writeFile(`out/${filename}`, output, (err) => {
-    if (err) {
-      console.log(err);
-    }
-
+    if (err) console.log(err);
     console.log(`completed ${filename}`);
   });
 };
@@ -309,18 +355,13 @@ const printOutput = (args) => {
 */
 const processStop = (stop) => {
   stop.lines.forEach((trainLine) => {
-    if (trainLine === 'W') {
-      return null;
-    } else if (trainLine === 'S' && stop.gtfsCode.includes('H')) {
-      return null;
-    }
-
-    if (trainLine === 'SIR' && stop.gtfsCode.startsWith('S')) {
+    if (trainLine === 'W' || (trainLine === 'S' && stop.gtfsCode.startsWith('H'))) {
+      return;
+    } else if (trainLine === 'SIR' && stop.gtfsCode.startsWith('S')) {
       trainLine = 'SI';
     }
 
     var routeGroup;
-
     for(var lineGroup of routeGroups) {
       if (lineGroup.includes(trainLine.toLowerCase())) {
         routeGroup = lineGroup;
@@ -342,92 +383,29 @@ const processStop = (stop) => {
       trainLine = 'GS';
     }
 
-    function getRT(cb) {
-      glob(`outjson/rt-2018-01-*-${routeGroup}.json`)
-      .then((matchingFiles) => {
-        return Promise.all(matchingFiles.map((filename) => {
-          return new Promise((resolve, reject) => {
-            fs.readFile(filename, (err, file) => {
-              if (err) {
-                throw err;
-              }
-
-              var key = filename.split('rt-')[1].split('-').splice(0, 3).join('-');
-              resolve({
-                [key]: JSON.parse(file.toString())
-              });
-            });
-          });
-        }));
-      })
-      .then((rtSegments) => {
-        cb([Object.assign({}, ...rtSegments)]);
+    Promise.all([getRT(routeGroup), getSchedule()])
+    .then((files) => {
+      return getResults({
+        dates,
+        monthYearPrefix, monthYearPrefix2, monthYearString,
+        rt: files[0],
+        stopId: stop.gtfsCode,
+        stopName: stop.name,
+        stopTimes: files[1],
+        trainLine, trainLineCodes
       });
-    };
-
-    function getSchedule(cb, files) {
-      fs.readFile('mtadownload/google_transit/stop_times.txt', (err, file) => {
-        if (err) {
-          throw err;
-        }
-
-        files.push(
-          file.toString().split("\n")
-        );
-        cb(files);
-      });
-    };
-
-    const dates = [
-      '2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05',
-      '2018-01-08', '2018-01-09', '2018-01-10', '2018-01-11', '2018-01-12',
-      '2018-01-15', '2018-01-16', '2018-01-17', '2018-01-18', '2018-01-19',
-      '2018-01-22', '2018-01-23', '2018-01-24', '2018-01-25', '2018-01-26',
-      '2018-01-29', '2018-01-30', '2018-01-31'
-    ];
-
-    function runAnalyzer(files) {
-      getResults(
-        {
-          date: '2018-01',
-          dates: dates,
-          dateStr: 'January 2018',
-          rt: files[0],
-          stopId: stop.gtfsCode,
-          stopName: stop.name,
-          stopTimes: files[1],
-          trainLine: trainLine,
-          trainLineCodes: trainLineCodes
-        },
-        printOutput
-      );
-    };
-
-    getRT(getSchedule.bind(null, runAnalyzer));
+    })
+    .then(printOutput)
+    .catch((e) => { debugger; });
   });
 };
 
-var fileCache = {};
-var routeGroups = [
-  '123456S',
-  '7',
-  'ace',
-  'bdfm',
-  'g',
-  'jz',
-  'l',
-  'nqrw',
-  'si'
-];
-
-const stops = require('./stations.json').filter((stop) => {
-  return stop.lines.includes('S') &&
-    stop.gtfsCode.startsWith('S');
+//const stops = require('./stations.json').filter((stop) => {
+  //return stop.lines.includes('R')// &&
+    //stop.gtfsCode.startsWith('S');
   //return ['636', 'G22', 'R42'].includes(stop.gtfsCode);
   //return stop.lines.includes('6');
-});
-
-console.log(stops);
+//});
 
 // headway.bigboard.blog generated:
 // **DONE
@@ -541,7 +519,9 @@ console.log(stops);
 // 15, 22
 
 // FIFTH:
-//var stops = require('./stations.json').filter((stop) => {
+stops = require('./stations.json').filter((stop) => {
+  return stop.gtfsCode === 'R01';
+});
   //return stop.lines.includes('7') &&
     //stop.lines.length > 1;
   ////return ['636', 'G22', 'R42'].includes(stop.gtfsCode);
@@ -557,4 +537,4 @@ console.log(stops);
 //});
 // 0, 1
 
-//stops.slice(0, 1).forEach(processStop);
+stops.slice(0, 1).forEach(processStop);
