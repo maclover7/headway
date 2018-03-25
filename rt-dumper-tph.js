@@ -33,10 +33,8 @@ const validDirectionsMap = {
  * getStopTimesSched
 */
 const getStopTimesSched = (ctx, validDirections) => {
+  console.log(`STATUS: ${ctx.stop.gtfsCode} getStopTimesSched`);
   var suffix = validDirections[0].substring(0, 1);
-  var formattedStopId = `${ctx.stopId}${suffix}`;
-
-  console.log(`STATUS: ${ctx.stopId} getStopTimesSched`);
 
   return ctx.stopTimes
     .filter((stopTime) => {
@@ -45,7 +43,7 @@ const getStopTimesSched = (ctx, validDirections) => {
 
       return (!stopTime.includes('trip_id')) &&
         stopTime.includes('WKD_') &&
-        (stop === formattedStopId) &&
+        (stop === `${ctx.stop.gtfsCode}${suffix}`) &&
         (
           stopTime.includes(`${ctx.trainLine}.${suffix}`) ||
             (stopTime.includes(`${ctx.trainLine}..${suffix}`))
@@ -73,12 +71,12 @@ const getStopTimesRT = (ctx, validDirections) => {
     var trainTimesForDate = Object.keys(ctx.rt[date])
       .filter((trainId) => {
         var train = ctx.rt[date][trainId];
-        return Object.keys(train.updates).includes(ctx.stopId) &&
-        ctx.trainLineCodes.some((code) => { return trainId.startsWith(code); }) &&
-        validDirections.includes(train.direction);
+        return Object.keys(train.updates).includes(ctx.stop.gtfsCode) &&
+          ctx.trainLineCodes.some((code) => { return trainId.startsWith(code); }) &&
+          validDirections.includes(train.direction);
       })
       .map((trainId) => {
-        return moment(ctx.rt[date][trainId].updates[ctx.stopId]);
+        return moment(ctx.rt[date][trainId].updates[ctx.stop.gtfsCode]);
       });
 
       return {
@@ -93,11 +91,11 @@ const getStopTimesRT = (ctx, validDirections) => {
  * calculateStatsForStopTimes
 */
 const calculateStatsForStopTimes = (ctx, stopTimes) => {
-  var stats = {};
+  var statsByDay = {};
 
   ctx.dates.forEach((date) => {
     var timesByHour = {};
-    stats[date] = {};
+    statsByDay[date] = {};
 
     var currentStopTimes = [];
     if (!Array.isArray(stopTimes)) {
@@ -107,7 +105,7 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
     }
 
     if (!currentStopTimes) {
-      throw new Error(ctx.stopId);
+      throw new Error(ctx.stop.gtfsCode);
     }
 
     currentStopTimes.forEach((time) => {
@@ -148,7 +146,7 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
         avgWaitTime = 0;
       }
 
-      stats[date][hour] = {
+      statsByDay[date][hour] = {
         count: sortedTimes.length,
         avgWait: Math.round(avgWaitTime),
         maxWait: Math.max(...waitTimes)
@@ -157,9 +155,9 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
   });
 
   var bigStats = {};
-  Object.keys(stats).forEach((date) => {
-    Object.keys(stats[date]).forEach((hour) => {
-      Object.keys(stats[date][hour]).forEach((hourStat) => {
+  Object.keys(statsByDay).forEach((date) => {
+    Object.keys(statsByDay[date]).forEach((hour) => {
+      Object.keys(statsByDay[date][hour]).forEach((hourStat) => {
         if (!bigStats[hour]) {
           bigStats[hour] = {};
         }
@@ -168,7 +166,7 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
           bigStats[hour][hourStat] = 0;
         }
 
-        bigStats[hour][hourStat] += stats[date][hour][hourStat];
+        bigStats[hour][hourStat] += statsByDay[date][hour][hourStat];
       });
     });
   });
@@ -180,7 +178,7 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
         bigStatsAvg[hour] = {};
       }
 
-      bigStatsAvg[hour][hourStat] = Math.round(bigStats[hour][hourStat] / (Object.keys(stats).length));
+      bigStatsAvg[hour][hourStat] = Math.round(bigStats[hour][hourStat] / (Object.keys(statsByDay).length));
     });
   });
 
@@ -288,7 +286,7 @@ const printOutput = (args) => {
 
       <div class="center">
         <h1>Weekday Headway Report</h1>
-        <h3>${ctx.trainLine} train at ${ctx.stopName}</h3>
+        <h3>${ctx.trainLine} train at ${ctx.stop.name}</h3>
         <h3>${ctx.monthYearString}</h3>
       </div>
       <br>
@@ -343,7 +341,7 @@ const printOutput = (args) => {
 
   output += '</div></body>';
 
-  var filename = `${ctx.stopId}-${ctx.trainLine}-${ctx.monthYearPrefix2}.html`;
+  var filename = `${ctx.stop.gtfsCode}-${ctx.trainLine}-${ctx.monthYearPrefix2}.html`;
   fs.writeFile(`out/${filename}`, output, (err) => {
     if (err) console.log(err);
     console.log(`completed ${filename}`);
@@ -389,8 +387,7 @@ const processStop = (stop) => {
         dates,
         monthYearPrefix, monthYearPrefix2, monthYearString,
         rt: files[0],
-        stopId: stop.gtfsCode,
-        stopName: stop.name,
+        stop,
         stopTimes: files[1],
         trainLine, trainLineCodes
       });
