@@ -36,11 +36,10 @@ const getStopTimesSched = (ctx, validDirections) => {
   return ctx.stopTimes
     .filter((stopTime) => {
       var split = stopTime.split(",");
-      var stop = split[3];
 
       return (!stopTime.includes('trip_id')) &&
         stopTime.includes('WKD_') &&
-        (stop === `${ctx.stop.gtfsCode}${suffix}`) &&
+        (split[3] === `${ctx.stop.gtfsCode}${suffix}`) &&
         (
           stopTime.includes(`${ctx.trainLine}.${suffix}`) ||
             (stopTime.includes(`${ctx.trainLine}..${suffix}`))
@@ -61,7 +60,7 @@ const getStopTimesSched = (ctx, validDirections) => {
 };
 
 const getStopTimesRT = (ctx, validDirections) => {
-  var allTrainTimes = Object.keys(ctx.rt).map((date) => {
+  return Object.keys(ctx.rt).reduce((obj, date) => {
     var trainTimesForDate = Object.keys(ctx.rt[date])
       .filter((trainId) => {
         var train = ctx.rt[date][trainId];
@@ -73,12 +72,9 @@ const getStopTimesRT = (ctx, validDirections) => {
         return moment(ctx.rt[date][trainId].updates[ctx.stop.gtfsCode]);
       });
 
-      return {
-        [date]: trainTimesForDate
-      };
-  });
-
-  return Object.assign({}, ...allTrainTimes);
+      obj[date] = trainTimesForDate;
+      return obj;
+  }, {});
 };
 
 const calculateStatsForStopTimes = (ctx, stopTimes) => {
@@ -128,10 +124,9 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
         }
       }
 
-      var totalWaitTime = waitTimes.reduce((a, b) => { return a + b; });
-
       var avgWaitTime;
       if (sortedTimes.length > 0) {
+        var totalWaitTime = waitTimes.reduce((a, b) => { return a + b; })
         avgWaitTime = (totalWaitTime / sortedTimes.length);
       } else {
         avgWaitTime = 0;
@@ -178,18 +173,15 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
 
 const getResults = (ctx) => {
   return new Promise((resolve, reject) => {
-    var retVal = Object.keys(validDirectionsMap).reduce((obj, validDirection) => {
-      var validDirections = validDirectionsMap[validDirection];
-
+    var results = Object.keys(validDirectionsMap).reduce((obj, validDirection) => {
       obj[validDirection] = {
-        ['Scheduled']: calculateStatsForStopTimes(ctx, getStopTimesSched(ctx, validDirections)),
-        ['Actual']: calculateStatsForStopTimes(ctx, getStopTimesRT(ctx, validDirections)),
+        ['Scheduled']: calculateStatsForStopTimes(ctx, getStopTimesSched(ctx, validDirectionsMap[validDirection])),
+        ['Actual']: calculateStatsForStopTimes(ctx, getStopTimesRT(ctx, validDirectionsMap[validDirection])),
       };
-
       return obj;
     }, {});
 
-    resolve([ctx, retVal]);
+    resolve({ ctx, results });
   });
 };
 
@@ -223,10 +215,7 @@ const getSchedule = () => {
   });
 };
 
-const printOutput = (args) => {
-  var ctx = args[0];
-  var results = args[1];
-
+const printOutput = ({ ctx, results }) => {
   var output = `
     <head>
       <link href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
@@ -305,8 +294,7 @@ const printOutput = (args) => {
           hourText = `${hour} a.m.`;
         }
 
-        output += `<b>${hourText}:</b>`;
-        output += '<ul>';
+        output += `<b>${hourText}:</b><ul>`;
 
         var attrMap = {
           'Number of Trains': 'count',
@@ -317,8 +305,7 @@ const printOutput = (args) => {
           output += `<li>${key}: ${results[result][resultType][hour][attrMap[key]]}`;
         }
 
-        output += '</ul>';
-        output += '<hr>';
+        output += '</ul><hr>';
       });
       output += '</div>';
     });
@@ -363,15 +350,20 @@ const processStop = (stop) => {
       trainLine = 'GS';
     }
 
-    Promise.all([getRT(routeGroup), getSchedule()])
-    .then((files) => {
+    getRT(routeGroup)
+    .then((rt) => {
+      return getSchedule()
+        .then((stopTimes) => {
+          return new Promise((resolve, reject) => {
+            resolve({ rt, stopTimes });
+          });
+        });
+    })
+    .then(({ rt, stopTimes }) => {
       return getResults({
         dates,
         monthYearPrefixGtfs, monthYearPrefixOutFilename, monthYearString,
-        rt: files[0],
-        stop,
-        stopTimes: files[1],
-        trainLine, trainLineCodes
+        rt, stop, stopTimes, trainLine, trainLineCodes
       });
     })
     .then(printOutput)
@@ -379,141 +371,7 @@ const processStop = (stop) => {
   });
 };
 
-//const stops = require('./stations.json').filter((stop) => {
-  //return stop.lines.includes('R')// &&
-    //stop.gtfsCode.startsWith('S');
-  //return ['636', 'G22', 'R42'].includes(stop.gtfsCode);
-  //return stop.lines.includes('6');
-//});
-
-// headway.bigboard.blog generated:
-// **DONE
-// FIRST: `stop.lines.length === 1;` (count = 264)
-// 8, 20
-// 20, 40
-// 40, 60
-// 60, 80
-// 80, 100
-// 100, 120
-// 120, 140
-// 140, 145
-// 154, 158
-// 158, 162
-// 162, 166
-// 166, 170
-// 170, 174
-// 174, 182
-// 178, 182
-// 182, 186
-// 186, 190
-// 190, 194
-// 194, 198
-// 198, 202
-// 202, 206
-// 206, 210
-// 210, 214
-// 214, 218
-// 218, 222
-// 222, 226
-// 226, 230
-// 230, 234
-// 234, 238
-// 238, 242
-// 242, 246
-// 246, 250
-// 250, 254
-// 254, 258
-// 258, 262
-// 262, 265
-
-// SECOND: `stop.lines.length === 2;` (count = 159)
-// 0, 5
-// 5, 15
-// 15, 25
-// 25, 35
-// 35, 45
-// 45, 55
-// 55, 65
-// 65, 75
-// 75, 85
-// 85, 95
-// 95, 105
-// 105, 109
-// 109, 113
-// 113, 115
-// 115, 117
-// 117, 119
-// 119, 121
-// 121, 123
-// 123, 125
-// 125, 127
-// 127, 129
-// 129, 131
-// 131, 133
-// 133, 135
-// 135, 137
-// 137, 139
-// 139, 141
-// 141, 143
-// 143, 145
-// 145, 147
-// 147, 149
-// 149, 151
-// 151, 153
-// 153, 155
-// 155, 157
-// 157, 160
-
-// THIRD: `stop.lines.length >= 3;`
-// 0, 3
-// 3, 6
-// 6, 9
-// 9, 12
-// 12, 15
-// 15, 18
-// 18, 21
-// 21, 24
-// 24, 27
-// 27, 30
-// 30, 33
-// 33, 35
-// 35, 36
-// 36, 37
-// 37, 38
-// 38, 39
-// 39, 40
-// 40, 41
-// 41, 42
-// 42, 43
-// 43, 44
-// 44, 45
-// 45, 46
-// 46, 47
-// 47, 49
-
-// FOURTH: `stop.lines.includes('SIR');`
-// 0, 5
-// 5, 10
-// 10, 15
-// 15, 22
-
-// FIFTH:
-stops = require('./stations.json').filter((stop) => {
+require('./stations.json').filter((stop) => {
   return stop.gtfsCode === 'R01';
-});
-  //return stop.lines.includes('7') &&
-    //stop.lines.length > 1;
-  ////return ['636', 'G22', 'R42'].includes(stop.gtfsCode);
-  ////return stop.lines.includes('6');
-//})
-//.map((stop) => {
-  //stop.lines.splice(
-    //stop.lines.indexOf('7'),
-    //1
-  //);
-
-  //return stop;
-//});
-// 0, 1
-
-stops.slice(0, 1).forEach(processStop);
+})
+.slice(0, 1).forEach(processStop);
