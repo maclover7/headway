@@ -33,11 +33,13 @@ const processFeed = (feedMessage, directionMap, body) => {
 
   msg.entity.forEach((entity) => {
    if (!entity.tripUpdate) return;
+   var nyctDescriptor = entity.tripUpdate.trip['.nyctTripDescriptor'];
+   var trainId = nyctDescriptor.trainId;
 
    if (!trainDb[trainId]) {
      trainDb[trainId] = {
        updates: {},
-       direction: directionMap[entity.tripUpdate.trip['.nyctTripDescriptor'].direction]
+       direction: directionMap[nyctDescriptor.direction]
      };
    }
 
@@ -95,7 +97,7 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
 loadTrainDataCollectorAssets()
 .then((args) => {
   [
-    '2018-01-02',
+    '2018-03-24',
     //'2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05',
     //'2018-01-08', '2018-01-09', '2018-01-10', '2018-01-11', '2018-01-12',
     //'2018-01-15', '2018-01-16', '2018-01-17', '2018-01-18', '2018-01-19',

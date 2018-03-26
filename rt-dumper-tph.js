@@ -3,16 +3,18 @@ const glob = require('util').promisify(require('glob'));
 const moment = require('moment');
 
 const dates = [
-  '2018-01-02'
+  '2018-03-24',
+  //'2018-01-02'
   //'2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05',
   //'2018-01-08', '2018-01-09', '2018-01-10', '2018-01-11', '2018-01-12',
   //'2018-01-15', '2018-01-16', '2018-01-17', '2018-01-18', '2018-01-19',
   //'2018-01-22', '2018-01-23', '2018-01-24', '2018-01-25', '2018-01-26',
   //'2018-01-29', '2018-01-30', '2018-01-31'
 ];
-const monthYearPrefixGtfs = '2018-01';
-const monthYearPrefixOutFilename = '2018-01-02';
-const monthYearString = 'January 2, 2018';
+const dayCode = 'SAT_';
+const monthYearPrefixGtfs = '2018-03';
+const monthYearPrefixOutFilename = '2018-03-24';
+const monthYearString = 'March 24, 2018';
 const routeGroups = [
   '123456S',
   '7',
@@ -38,7 +40,7 @@ const getStopTimesSched = (ctx, validDirections) => {
       var split = stopTime.split(",");
 
       return (!stopTime.includes('trip_id')) &&
-        stopTime.includes('WKD_') &&
+        stopTime.includes(dayCode) &&
         (split[3] === `${ctx.stop.gtfsCode}${suffix}`) &&
         (
           stopTime.includes(`${ctx.trainLine}.${suffix}`) ||
@@ -186,7 +188,7 @@ const getResults = (ctx) => {
 };
 
 const getRT = (routeGroup) => {
-  return glob(`outjson/rt-${monthYearPrefixGtfs}-*-${routeGroup}.json`)
+  return glob(`outjson/rt-${monthYearPrefixGtfs}*-${routeGroup}.json`)
   .then((matchingFiles) => {
     return Promise.all(matchingFiles.map((filename) => {
       return new Promise((resolve, reject) => {
@@ -372,6 +374,6 @@ const processStop = (stop) => {
 };
 
 require('./stations.json').filter((stop) => {
-  return stop.gtfsCode === 'R01';
+  return stop.gtfsCode === '123';
 })
 .slice(0, 1).forEach(processStop);
