@@ -8,6 +8,25 @@ subway system's performance.
 - `gtfs-realtime.proto`: GTFS-RT Protocol Buffers definition
 - `nyct-subway.proto`: NYC Subway extensions to GTFS-RT
 
+### Configuration
+
+The central configuration file is `config.json`. Below are a list of
+keys, and their significance:
+
+- `dates` of type `Array<String>`, a list of `YYYY-MM-DD` dates to
+  perform operations on
+- `dayCode` of type `String`, the beginning of the GTFS static trip ID
+  (possible values are `WKD_`, `SAT_`, etc.)
+- `jsonRouteGroups` of type `Array<String>` (inferred from NYCT)
+- `monthYearPrefixGtfs` of type `String`, which GTFS-RT JSON dump files
+  to read in
+- `monthYearPrefixOutFilename` of type `String`, suffix for the output
+  HTML file
+- `monthYearString` of type `String`, the HTML header value for date
+- `routeGroups` of type `Array<String>` (inferred from NYCT)
+- `validDirectionsMap` of type `Object<String,Array<String>>` (inferred
+  from NYCT)
+
 ### Tools
 
 - `index-gen.js`: Creates `out/index.html`
