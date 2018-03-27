@@ -80,11 +80,9 @@ const getStopTimesRT = (ctx, validDirections) => {
 };
 
 const calculateStatsForStopTimes = (ctx, stopTimes) => {
-  var statsByDay = {};
-
-  ctx.dates.forEach((date) => {
+  var statsByDay = ctx.dates.reduce((prev, date) => {
     var timesByHour = {};
-    statsByDay[date] = {};
+    prev[date] = {};
 
     var currentStopTimes = [];
     if (!Array.isArray(stopTimes)) {
@@ -97,19 +95,21 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
       throw new Error(ctx.stop.gtfsCode);
     }
 
-    currentStopTimes.forEach((time) => {
+    var timesByHour = currentStopTimes.reduce((prev, time) => {
       var hour = time.get('hour');
 
-      if (!timesByHour[hour] && !Number.isNaN(hour)) {
-        timesByHour[hour] = [];
+      if (!prev[hour] && !Number.isNaN(hour)) {
+        prev[hour] = [];
       }
 
       if (time.format('YYYY-MM-DD') === date) {
-        timesByHour[hour].push(time);
+        prev[hour].push(time);
       }
-    });
 
-    Object.keys(timesByHour).forEach((hour) => {
+      return prev;
+    }, {});
+
+    for(var hour in timesByHour) {
       var sortedTimes = timesByHour[hour].sort();
 
       var waitTimes = [];
@@ -134,43 +134,45 @@ const calculateStatsForStopTimes = (ctx, stopTimes) => {
         avgWaitTime = 0;
       }
 
-      statsByDay[date][hour] = {
+      prev[date][hour] = {
         count: sortedTimes.length,
         avgWait: Math.round(avgWaitTime),
         maxWait: Math.max(...waitTimes)
       };
-    });
-  });
+    };
 
-  var bigStats = {};
-  Object.keys(statsByDay).forEach((date) => {
-    Object.keys(statsByDay[date]).forEach((hour) => {
-      Object.keys(statsByDay[date][hour]).forEach((hourStat) => {
-        if (!bigStats[hour]) {
-          bigStats[hour] = {};
+    return prev;
+  }, {});
+
+  var bigStats = Object.keys(statsByDay).reduce((prev, date) => {
+    for(var hour in statsByDay[date]) {
+      for(var hourStat in statsByDay[date][hour]) {
+        if (!prev[hour]) {
+          prev[hour] = {};
         }
 
-        if (!bigStats[hour][hourStat]) {
-          bigStats[hour][hourStat] = 0;
+        if (!prev[hour][hourStat]) {
+          prev[hour][hourStat] = 0;
         }
 
-        bigStats[hour][hourStat] += statsByDay[date][hour][hourStat];
-      });
-    });
-  });
+        prev[hour][hourStat] += statsByDay[date][hour][hourStat];
+      };
+    };
 
-  var bigStatsAvg = {};
-  Object.keys(bigStats).forEach((hour) => {
-    Object.keys(bigStats[hour]).forEach((hourStat) => {
-      if (!bigStatsAvg[hour]) {
-        bigStatsAvg[hour] = {};
+    return prev;
+  }, {});
+
+  return Object.keys(bigStats).reduce((prev, hour) => {
+    for(var hourStat in bigStats[hour]) {
+      if (!prev[hour]) {
+        prev[hour] = {};
       }
 
-      bigStatsAvg[hour][hourStat] = Math.round(bigStats[hour][hourStat] / (Object.keys(statsByDay).length));
-    });
-  });
+      prev[hour][hourStat] = Math.round(bigStats[hour][hourStat] / (Object.keys(statsByDay).length));
+    };
 
-  return bigStatsAvg;
+    return prev;
+  }, {});
 };
 
 const getResults = (ctx) => {
@@ -269,20 +271,20 @@ const printOutput = ({ ctx, results }) => {
       <div class="row">
     `;
 
-  Object.keys(results).forEach((result) => {
-    Object.keys(results[result]).forEach((resultType) => {
+  for(var result in results) {
+    for(var resultType in results[result]) {
       output += `<div class="col-md-3"><h3>${result}: ${resultType}</h3>`;
 
       // Fix issue (namely with #5 line) where trains seem to be incorrectly coded.
       // There are numerous RT trains appearing, while none are scheduled
       // (Consult late night service map for more information!)
-      Object.keys(results[result]['Actual']).forEach((hour) => {
+      for(var hour in results[result]['Actual']) {
         if (!Object.keys(results[result]['Scheduled']).includes(hour)) {
           delete results[result]['Actual'][hour];
         }
-      });
+      };
 
-      Object.keys(results[result][resultType]).forEach((hour) => {
+      for(var hour in results[result][resultType]) {
         var hourText = '';
         var hourInt = parseInt(hour);
 
@@ -308,10 +310,10 @@ const printOutput = ({ ctx, results }) => {
         }
 
         output += '</ul><hr>';
-      });
+      };
       output += '</div>';
-    });
-  });
+    };
+  };
 
   output += '</div></body>';
 
@@ -342,10 +344,8 @@ const processStop = (stop) => {
     }
 
     var trainLineCodes = [
-      `0${trainLine}`,
-      `1${trainLine}`,
-      `/${trainLine}`,
-      `E${trainLine}`
+      `0${trainLine}`, `1${trainLine}`,
+      `/${trainLine}`, `E${trainLine}`
     ];
 
     if (trainLine === 'S' && ['901', '902'].includes(stop.gtfsCode)) {
@@ -375,5 +375,4 @@ const processStop = (stop) => {
 
 require('./stations.json').filter((stop) => {
   return stop.gtfsCode === '123';
-})
-.slice(0, 1).forEach(processStop);
+}).slice(0, 1).forEach(processStop);
