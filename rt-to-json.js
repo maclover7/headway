@@ -3,6 +3,8 @@ const ProtoBuf = require('protobufjs');
 const moment = require('moment');
 const fs = require('fs');
 
+const { dates, jsonRouteGroups } = require('./config.json');
+
 trainDb = {};
 
 const loadTrainDataCollectorAssets = () => {
@@ -65,7 +67,7 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
   fs.readdir(dir, (err, files) => {
     if (err) throw err;
 
-    ['', '7', 'ace', 'bdfm', 'g', 'jz', 'l', 'nqrw', 'si'].forEach((line) => {
+    jsonRouteGroups.forEach((line) => {
       trainDb = {};
 
       var lineFiles = files.filter((file) => {
@@ -96,14 +98,7 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
 
 loadTrainDataCollectorAssets()
 .then((args) => {
-  [
-    '2018-03-24',
-    //'2018-01-02', '2018-01-03', '2018-01-04', '2018-01-05',
-    //'2018-01-08', '2018-01-09', '2018-01-10', '2018-01-11', '2018-01-12',
-    //'2018-01-15', '2018-01-16', '2018-01-17', '2018-01-18', '2018-01-19',
-    //'2018-01-22', '2018-01-23', '2018-01-24', '2018-01-25', '2018-01-26',
-    //'2018-01-29', '2018-01-30', '2018-01-31'
-  ].forEach((day) => {
-    runTrainDataCollector(args[0], args[1], day);
+  dates.forEach((date) => {
+    runTrainDataCollector(args[0], args[1], date);
   });
 });

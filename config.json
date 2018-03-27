@@ -1,0 +1,35 @@
+{
+  "dates": [
+    "2018-03-24"
+  ],
+  "dayCode": "SAT_",
+  "jsonRouteGroups": [
+    "",
+    "7",
+    "ace",
+    "bdfm",
+    "g",
+    "jz",
+    "l",
+    "nqrw",
+    "si"
+  ],
+  "monthYearPrefixGtfs": "2018-03",
+  "monthYearPrefixOutFilename": "2018-03-24",
+  "monthYearString": "March 24, 2018",
+  "routeGroups": [
+    "123456S",
+    "7",
+    "ace",
+    "bdfm",
+    "g",
+    "jz",
+    "l",
+    "nqrw",
+    "si"
+  ],
+  "validDirectionsMap": {
+    "North": ["NORTH", "WEST"],
+    "South": ["SOUTH", "EAST"]
+  }
+}
