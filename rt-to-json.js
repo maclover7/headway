@@ -1,4 +1,3 @@
-const request = require('request-promise');
 const ProtoBuf = require('protobufjs');
 const moment = require('moment');
 const fs = require('fs');
