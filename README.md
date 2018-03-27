@@ -11,6 +11,9 @@ subway system's performance.
 ### Tools
 
 - `index-gen.js`: Creates `out/index.html`
+- `rt-dumper-compare.js`: Uses processed data from `rt-to-json.js` and
+  compares the stop time updates for between two individual stations,
+over the control and experimental groups of dates
 - `rt-dumper-tph.js`: Uses processed data from `rt-to-json.js` and creates `.html` files in `out`. Each file is a unique combination of station and line.
   - Loads GTFS-RT and GTFS static data into memory
   - For each direction, finds the "scheduled" and "actual" values for:
