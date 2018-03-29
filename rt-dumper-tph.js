@@ -3,7 +3,7 @@ const glob = require('util').promisify(require('glob'));
 const moment = require('moment');
 
 const {
-  dates, dayCode, monthYearPrefixGtfs, monthYearPrefixOutFilename,
+  attrMap, dates, dayCode, monthYearPrefixGtfs, monthYearPrefixOutFilename,
   monthYearString, routeGroups, validDirectionsMap
 } = require('./config.json');
 
@@ -276,11 +276,6 @@ const printOutput = ({ ctx, results }) => {
 
         output += `<b>${hourText}:</b><ul>`;
 
-        var attrMap = {
-          'Number of Trains': 'count',
-          'Average Wait Time': 'avgWait',
-          'Max Wait Time': 'maxWait'
-        };
         for(var key in attrMap) {
           output += `<li>${key}: ${results[result][resultType][hour][attrMap[key]]}`;
         }

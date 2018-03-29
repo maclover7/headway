@@ -1,4 +1,9 @@
 {
+  "attrMap": {
+    "Number of Trains": "count",
+    "Average Wait Time": "avgWait",
+    "Max Wait Time": "maxWait"
+  },
   "dates": [
     "2018-03-24"
   ],

@@ -13,6 +13,8 @@ subway system's performance.
 The central configuration file is `config.json`. Below are a list of
 keys, and their significance:
 
+- `attrMap` of type `Object<String, String>`, a mapping of hourStat keys
+  to their proper HTML output heading values
 - `dates` of type `Array<String>`, a list of `YYYY-MM-DD` dates to
   perform operations on
 - `dayCode` of type `String`, the beginning of the GTFS static trip ID
