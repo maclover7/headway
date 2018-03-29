@@ -3,6 +3,8 @@
 A set of tools used to generate visualizations for the New York City
 subway system's performance.
 
+This toolbelt was used in reporting["Out in the cold: Irregular subway ops leads to longer wait times"](https://nybigboard.com/2018/02/15/out-in-the-cold-irregular-subway-ops-leads-to-longer-wait-times/), as seen on _The Big Board_.
+
 ### Artifacts
 
 - `gtfs-realtime.proto`: GTFS-RT Protocol Buffers definition
