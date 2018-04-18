@@ -1,59 +1,51 @@
-const moment = require('moment');
-const fs = require('fs');
+const readdir = require('util').promisify(require('fs').readdir);
 const { loadProtobufAssets, processProtobuf } = require('nyc-gtfs-utils');
 
 const { dates, jsonRouteGroups } = require('./config.json');
+trainDb = {};
 
-const processFile = (feedMessage, directionMap, body) => {
-  var trainDb = {};
+const onEntity = ({ trainId, direction }) => {
+  if (!trainDb[trainId]) {
+    trainDb[trainId] = { updates: {}, direction };
+  }
+  return Promise.resolve();
+};
 
-  return processProtobuf(
-    feedMessage, directionMap, body,
-    (nyctDescriptor) => {
-      if (!trainDb[nyctDescriptor.trainId]) {
-        trainDb[nyctDescriptor.trainId] = {
-          updates: {},
-          direction: directionMap[nyctDescriptor.direction]
-        };
-      }
-    },
-    ({ trainId, stopId, time }) => {
-      trainDb[trainId].updates[stopId] = time;
-    }
-  ).then(() => {
-    return new Promise((resolve, reject) => {
-      resolve(trainDb);
-    });
-  });
+const onStopTimeUpdate = ({ trainId, stopId, time }) => {
+  trainDb[trainId].updates[stopId] = time;
+  return Promise.resolve();
 };
 
 const runTrainDataCollector = (feedMessage, directionMap, date) => {
   var dir = `mtadownload/gtfs-${date}/`;
-  fs.readdir(dir, (err, files) => {
+  readdir(dir).then((files) => {
     if (err) throw err;
 
     jsonRouteGroups.forEach((line) => {
-      var processedFiles = files.filter((file) => {
-        return !(file.includes('lirr') || file.includes('mnr')) && file.startsWith(`gtfs-${line}`);
+      trainDb = {};
+
+      var promises = files
+      .filter((file) => {
+        return !(file.includes('lirr') || file.includes('mnr')) &&
+          file.startsWith(`gtfs-${line ?  '-' : '' }2018`);
       })
-      .map((lineFile) => {
-        return processFile(
-          feedMessage,
-          directionMap,
-          fs.readFileSync(`${dir}/${lineFile}`)
+      .map((file) => {
+        return processProtobuf(
+          feedMessage, directionMap, fs.readFileSync(`${dir}/${file}`),
+          onEntity, onStopTimeUpdate
         );
       });
 
-      Promise.all(processedFiles)
-      .then((trainDb) => {
-        if (line === '') {
-          line = '123456S';
-        }
+      Promise.all(promises)
+      .then(() => {
+         if (line === '') {
+           line = '123456S';
+         }
 
-        var filename = `outjson/rt-${date}-${line}.json`;
-        fs.writeFile(filename, JSON.stringify(Object.assign({}, ...trainDb)), () => {
-          console.log(`Wrote ${filename}`);
-        });
+         var filename = `outjson/rt-${date}-${line}.json`;
+         fs.writeFile(filename, JSON.stringify(trainDb), () => {
+           console.log(`Wrote ${filename}`);
+         });
       });
     });
   });
@@ -62,6 +54,6 @@ const runTrainDataCollector = (feedMessage, directionMap, date) => {
 loadProtobufAssets()
 .then((args) => {
   dates.forEach((date) => {
-    runTrainDataCollector(args[0], args[1], date);
+    runTrainDataCollector(args[0], args[1], date)
   });
 });
