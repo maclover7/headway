@@ -1,4 +1,5 @@
-const readdir = require('util').promisify(require('fs').readdir);
+const fs = require('fs');
+const readdir = require('util').promisify(fs.readdir);
 const { loadProtobufAssets, processProtobuf } = require('nyc-gtfs-utils');
 
 const { dates, jsonRouteGroups } = require('./config.json');
@@ -19,8 +20,6 @@ const onStopTimeUpdate = ({ trainId, stopId, time }) => {
 const runTrainDataCollector = (feedMessage, directionMap, date) => {
   var dir = `mtadownload/gtfs-${date}/`;
   readdir(dir).then((files) => {
-    if (err) throw err;
-
     jsonRouteGroups.forEach((line) => {
       trainDb = {};
 
