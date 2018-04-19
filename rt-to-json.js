@@ -20,13 +20,14 @@ const onStopTimeUpdate = ({ trainId, stopId, time }) => {
 const runTrainDataCollector = (feedMessage, directionMap, date) => {
   var dir = `mtadownload/gtfs-${date}/`;
   readdir(dir).then((files) => {
-    jsonRouteGroups.forEach((line) => {
+    ['nqrw'].forEach((line) => {
       trainDb = {};
 
       var promises = files
       .filter((file) => {
+        var keyword = line ? `${line}-` : '';
         return !(file.includes('lirr') || file.includes('mnr')) &&
-          file.startsWith(`gtfs-${line ?  '-' : '' }2018`);
+          file.startsWith(`gtfs-${keyword}2018`);
       })
       .map((file) => {
         return processProtobuf(
