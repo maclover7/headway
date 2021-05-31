@@ -23,7 +23,9 @@ request(`http://web.mta.info/developers/data/nyct/subway/Stations.csv`)
       resolve({
         name: station[5],
         gtfsCode: station[2],
-        lines: station[7].split(" ")
+        lines: station[7].split(" "),
+        lat: station[9],
+        lon: station[10]
       });
     });
   });

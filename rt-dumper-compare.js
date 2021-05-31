@@ -1,5 +1,8 @@
 const moment = require('moment');
-const readFile = require('util').promisify(require('fs').readFile);
+var fs = require('fs');
+const readFile = require('util').promisify(fs.readFile);
+
+var out = { 'RT': {}, 'SC': {} };
 
 const ctx = {
   dates: [
@@ -7,23 +10,27 @@ const ctx = {
     //'2017-11-01',
     //'2018-01-05',
     '2018-02-20',
-    '2018-04-17',
-    '2018-04-18'
+    //'2018-04-17',
+    //'2018-04-18'
 
     // "experimental" group (the way things are now)
     //'2018-03-15'
   ],
 
   // 33 St on the 6 train
-  fromSta: 'Q01',
+  //fromSta: '101',
 
   // 42 St on the 6 train
-  toSta: 'R30',
+  //toSta: '103',
   direction: 'SOUTH',
   routeGroup: 'nqrw'
 };
 
-const processTrains = ({ source, trains, date }) => {
+currrentstops = require('./linestops.js').lineqstops;
+lastStop = 'D43';
+subwayRoute = 'Q';
+
+const processTrains = ({ source, trains, date, fromSta, toSta }) => {
   return new Promise((resolve, reject) => {
     var diffs = [];
     Object.keys(trains).forEach((key) => {
@@ -31,28 +38,28 @@ const processTrains = ({ source, trains, date }) => {
       var trainStops = Object.keys(train.updates);
 
       var validTrain = (train.direction === ctx.direction) &&
-        (trainStops.includes(ctx.fromSta) && trainStops.includes(ctx.toSta));
+        (trainStops.includes(fromSta) && trainStops.includes(toSta));
 
       if (!validTrain) {
         delete trains[key];
       } else {
-        var diff = moment(train.updates[ctx.toSta])
-          .diff(moment(train.updates[ctx.fromSta]), 'minutes');
+        var diff = moment(train.updates[toSta])
+          .diff(moment(train.updates[fromSta]), 'minutes');
         diffs.push(Math.abs(diff));
       }
     });
 
-    resolve({ date, diffs, source, trainsCount: Object.keys(trains).length });
+    resolve({ date, diffs, source, trainsCount: Object.keys(trains).length, fromSta, toSta });
   });
 };
 
-const getScheduled = (date) => {
+const getScheduled = ({ date, fromSta, toSta }) => {
   return readFile(`mtadownload/google_transit/stop_times.txt`)
   .then((file) => {
     return new Promise((resolve, reject) => {
       var lines = file.toString().split("\n")
       .filter((trip) => {
-        return trip.includes('WKD_') && trip.includes('_Q..');
+        return trip.includes('WKD_') && trip.includes(`_${subwayRoute}..`);
       })
       .forEach((trip) => {
         var split = trip.split('..');
@@ -79,26 +86,41 @@ const getScheduled = (date) => {
         }
       });
 
-      resolve({ source: 'SC', trains: trainDb, date });
+      resolve({ source: 'SC', trains: trainDb, date, fromSta, toSta });
     });
   });
 };
 
 for(var date of ctx.dates) {
-  var trainDb = {};
+  for(var i = 1; i < currrentstops.length; i++) {
+    fromSta = currrentstops[i-1];
+    toSta = currrentstops[i];
+    var trainDb = {};
 
-  Promise.all([
-    getScheduled(date).then(processTrains),
-    Promise.resolve({ source: 'RT', trains: require(`./outjson/rt-${date}-${ctx.routeGroup}.json`), date }).then(processTrains)
-  ])
-  .then((values) => {
-    console.log('--');
-    values.forEach(({ source, date, diffs, trainsCount }) => {
-      console.log(`${source} ${date}: ${trainsCount} trains`);
-      console.log(diffs.reduce((a, b) => { return a + b; }, 0) / trainsCount);
+    Promise.all([
+      getScheduled({ fromSta, toSta, date }).then(processTrains),
+      Promise.resolve({ fromSta, toSta, source: 'RT', trains: require(`./outjson/rt-${date}-${ctx.routeGroup}.json`), date }).then(processTrains)
+    ])
+    .then((values) => {
+      console.log('--');
+      values.forEach(({ source, date, fromSta, toSta, diffs, trainsCount }) => {
+        if (!out[source][`${fromSta}-${toSta}`]) {
+          out[source][`${fromSta}-${toSta}`] = [];
+        }
+
+        var avg = diffs.reduce((a, b) => { return a + b; }, 0) / trainsCount;
+        out[source][`${fromSta}-${toSta}`].push(Math.round(100 * avg) / 100);
+        console.log(out);
+
+        if (toSta === lastStop) {
+          fs.writeFileSync(`./outdiffs/od-${date}-${subwayRoute}-${ctx.direction.substring(0, 1)}.json`, JSON.stringify(out));
+        }
+        //console.log(`${source} ${date}: ${trainsCount} trains`);
+        //console.log(`${source}: ` + diffs.reduce((a, b) => { return a + b; }, 0) / trainsCount);
+      });
+    })
+    .catch((e) => {
+      console.error(e);
     });
-  })
-  .catch((e) => {
-    console.error(e);
-  });
+  }
 }

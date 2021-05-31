@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "csv-parse": "^2.0.2",
+    "deepmerge": "^2.1.0",
     "glob": "^7.1.2",
     "moment": "^2.20.1",
     "nyc-gtfs-utils": "0.0.7",

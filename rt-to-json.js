@@ -2,7 +2,14 @@ const fs = require('fs');
 const readdir = require('util').promisify(fs.readdir);
 const { loadProtobufAssets, processProtobuf } = require('nyc-gtfs-utils');
 
-const { dates, jsonRouteGroups } = require('./config.json');
+const { jsonRouteGroups } = require('./config.json');
+const dates = [
+  '2018-02-01', '2018-02-02',
+  '2018-02-05', '2018-02-06', '2018-02-07', '2018-02-08', '2018-02-09',
+  '2018-02-12', '2018-02-13', '2018-02-14', '2018-02-15', '2018-02-16',
+  '2018-02-19', '2018-02-20', '2018-02-21', '2018-02-22', '2018-02-23',
+  '2018-02-26', '2018-02-27', '2018-02-28'
+];
 trainDb = {};
 
 const onEntity = ({ trainId, direction }) => {
@@ -20,7 +27,7 @@ const onStopTimeUpdate = ({ trainId, stopId, time }) => {
 const runTrainDataCollector = (feedMessage, directionMap, date) => {
   var dir = `mtadownload/gtfs-${date}/`;
   readdir(dir).then((files) => {
-    ['nqrw'].forEach((line) => {
+    [''].forEach((line) => {
       trainDb = {};
 
       var promises = files

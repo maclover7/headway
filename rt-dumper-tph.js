@@ -1,6 +1,7 @@
 const fs = require('fs');
 const glob = require('util').promisify(require('glob'));
 const moment = require('moment');
+const deepmerge = require('deepmerge');
 
 const {
   attrMap, dates, dayCode, monthYearPrefixGtfs, monthYearPrefixOutFilename,
@@ -181,7 +182,7 @@ const getRT = (routeGroup) => {
   })
   .then((rtSegments) => {
     return new Promise((resolve, reject) => {
-      resolve(...rtSegments);
+      resolve(Object.assign({}, ...rtSegments));
     });
   });
 };
@@ -192,6 +193,65 @@ const getSchedule = () => {
       if (err) reject(err);
       resolve(file.toString().split("\n"));
     });
+  });
+};
+
+const printAnalysis = ({ ctx, results }) => {
+  return new Promise((resolve, reject) => {
+    var output = {};
+
+    for(var result in results) {
+      if (!output[result]) {
+        output[result] = {};
+      }
+
+      for(var resultType in results[result]) {
+        // Fix issue (namely with #5 line) where trains seem to be incorrectly coded.
+        // There are numerous RT trains appearing, while none are scheduled
+        // (Consult late night service map for more information!)
+        for(var hour in results[result]['Actual']) {
+          if (!Object.keys(results[result]['Scheduled']).includes(hour)) {
+            delete results[result]['Actual'][hour];
+          }
+        };
+
+        if (resultType === 'Actual') {
+          for(var hour in results[result][resultType]) {
+            var hourInt = parseInt(hour);
+
+            if (hourInt > 5 && hourInt < 20) {
+              for(var key in attrMap) {
+                var attr = attrMap[key];
+                var actual = results[result][resultType][hour][attr];
+                var scheduled = results[result]['Scheduled'][hour][attr];
+                var notCompliant = false;
+                var pct = '';
+
+                if (attr === 'count') {
+                  notCompliant = actual < scheduled;
+                } else if (attr === 'maxWait') {
+                  notCompliant = actual > scheduled;
+                }
+
+                pct = Math.round((actual / scheduled) * 100);
+
+                if (notCompliant) {
+                  if (!output[result][attr]) {
+                    output[result][attr] = {};
+                  }
+
+                  output[result][attr][hourInt] = {
+                    actual, scheduled, pct
+                  };
+                }
+              }
+            }
+          };
+        }
+      };
+    };
+
+    resolve({ [ctx.stop.gtfsCode]: { [ctx.trainLine]: { output } } });
   });
 };
 
@@ -296,7 +356,18 @@ const printOutput = ({ ctx, results }) => {
 };
 
 const processStop = (stop) => {
-  stop.lines.forEach((trainLine) => {
+  if (stop.gtfsCode === 'F27') {
+    stop.lines.push('G');
+  }
+
+  stop.lines = stop.lines.filter((l) => {
+    return ![
+      '1', '2', '3', '4', '5', '7',
+      'A', 'B', 'C', 'D', 'E', 'F', 'G', 'J', 'L', 'M', 'N', 'Q', 'R', 'W', 'Z'
+    ].includes(l);
+  });
+
+  var linesAnalysis = stop.lines.map((trainLine) => {
     if (trainLine === 'W' || (trainLine === 'S' && stop.gtfsCode.startsWith('H'))) {
       return;
     } else if (trainLine === 'SIR' && stop.gtfsCode.startsWith('S')) {
@@ -323,7 +394,7 @@ const processStop = (stop) => {
       trainLine = 'GS';
     }
 
-    getRT(routeGroup)
+    return getRT(routeGroup)
     .then((rt) => {
       return getSchedule()
         .then((stopTimes) => {
@@ -339,11 +410,23 @@ const processStop = (stop) => {
         rt, stop, stopTimes, trainLine, trainLineCodes
       });
     })
-    .then(printOutput)
+    .then(printAnalysis)
+    //.then(printOutput)
     .catch((e) => { debugger; });
   });
+
+  return Promise.all(linesAnalysis);
 };
 
-require('./stations.json').filter((stop) => {
-  return stop.gtfsCode === '123';
-}).slice(0, 1).forEach(processStop);
+var stopAnalyses = require('./stations.json').filter((stop) => {
+  return stop.lines.includes('6');
+}).slice(34, 40).map(processStop);
+
+// 6
+
+Promise.all(stopAnalyses).then((stopAnalyses) => {
+  var filename = './out/analysis-g-02.json';
+  var current = JSON.parse(fs.readFileSync(filename).toString());
+  var newContents = deepmerge(current, deepmerge.all(deepmerge({}, deepmerge({}, [].concat(...stopAnalyses))).filter((k) => { return !!k })));
+  fs.writeFileSync(filename, JSON.stringify(newContents));
+});
